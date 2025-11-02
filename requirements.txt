@@ -1,0 +1,6 @@
+# Project dependencies
+fastapi
+uvicorn
+langchain
+feedparser
+requests
