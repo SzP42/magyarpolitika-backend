@@ -7,4 +7,6 @@ requests
 langchain_huggingface
 torch
 transformers[sentencepiece]
+sentence-transformers
+scikit-learn
 
