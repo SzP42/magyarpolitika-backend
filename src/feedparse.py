@@ -1,7 +1,33 @@
 import feedparser
-import requests
+import re
 from typing import List, Dict, Optional
 from datetime import datetime
+from bs4 import BeautifulSoup 
+
+
+def clean_text(text: str) -> str:
+    """
+    Universal cleaner for RSS feeds.
+    Handles: HTML tags, CDATA artifacts, specific footers, and whitespace.
+    """
+    if not text:
+        return ""
+
+    # 1. Remove HTML tags (p, a, img, etc.)
+    # BeautifulSoup handles HTML entities (&amp;) and tags automatically.
+    soup = BeautifulSoup(text, "html.parser")
+    clean = soup.get_text(separator=" ")
+
+    # 2. Remove "The post ... first appeared on ..." (24.hu specific artifact)
+    clean = re.sub(r"The post.*?first appeared on.*?24\.hu\.?", "", clean, flags=re.IGNORECASE)
+
+    # 3. Remove "Source" links at the end (Common in Atlatszo/others)
+    clean = re.sub(r"\s*Source\s*$", "", clean, flags=re.IGNORECASE)
+
+    # 4. Collapse multiple spaces/newlines into single space
+    clean = " ".join(clean.split())
+
+    return clean
 
 
 def parse_feed(feed_url: str, timeout: int = 10) -> Optional[Dict]:
@@ -33,23 +59,35 @@ def parse_feed(feed_url: str, timeout: int = 10) -> Optional[Dict]:
             'description': feed.feed.get('description', ''),
             'entries': []
         }
-        
-        # Extract entries
+
         for entry in feed.entries:
+            # Get raw text
+            raw_title = entry.get('title', '')
+            raw_desc = entry.get('description', '')
+
+            # Clean_text
+            clean_title = clean_text(raw_title)
+            clean_desc = clean_text(raw_desc)
+
+            if len(clean_desc) > 1000:
+                clean_desc = clean_desc[:1000].rsplit(' ', 1)[0] + "..."
+
             entry_data = {
-                'title': entry.get('title', ''),
+                'title': clean_title,
                 'link': entry.get('link', ''),
                 'published': entry.get('published', ''),
-                'description': entry.get('description', ''),
+                'description': clean_desc
             }
+
             feed_info['entries'].append(entry_data)
-        
+
         print(f"[FeedParse] Successfully parsed '{feed_info['title']}': {len(feed_info['entries'])} articles found")
         return feed_info
         
     except Exception as e:
         print(f"[FeedParse] Error parsing feed {feed_url}: {str(e)}")
         return None
+           
 
 def get_all_articles(feed_urls: List[str], timeout: int = 10) -> List[Dict]:
     """

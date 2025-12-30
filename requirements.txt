@@ -9,4 +9,5 @@ torch
 transformers[sentencepiece]
 sentence-transformers
 scikit-learn
+beautifulsoup4
 
