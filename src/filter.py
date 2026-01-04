@@ -1,4 +1,4 @@
-import torch
+# import torch
 from transformers import pipeline
 from typing import List, Dict
 
@@ -7,22 +7,22 @@ dumb_model = "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli"
 
 KEYWORDS = [
     "Orbán", "Szijjártó", "Rogán", "Gulyás", "Lázár", "Navracsics", "Kocsis Máté", 
-    "Szentkirályi", "Deutsch", "Pintér Sándor", "Novák", "Vitályos",
+    "Szentkirályi", "Deutsch", "Pintér Sándor", "Novák", "Vitályos", "Menczer"
     "Magyar Péter", "Gyurcsány", "Dobrev", "Karácsony", "Toroczkai", 
-    "Ungár", "Márki-Zay", "Hadházy",
+    "Ungár", "Márki-Zay", "Hadházy", "Forint" "Nagy Márton", "Mészáros Lőrinc", "Gazdaság", "Nyugdíj"
     "Fidesz", "KDNP", "Tisza Párt", "TISZA", "Demokratikus Koalíció", "DK", 
     "Mi Hazánk", "Momentum", "Kutyapárt", "MKKP", "Jobbik", "LMP", "MSZP",
     "választás", "kampány", "parlament", "kormány", "ellenzék", "szavazás", 
-    "mandátum", "vita", "választókerület",
+    "mandátum", "vita", "választókerület", 
 ]
 
 def load_classifier(use_smart_model=True):
 
     device = -1
-    if torch.cuda.is_available():
-        device = 0
-    elif torch.backends.mps.is_available():
-        device = "mps"
+    # if torch.cuda.is_available():
+        # device = 0
+    # elif torch.backends.mps.is_available():
+        # device = "mps"
 
     if use_smart_model:
         MODEL = smart_model

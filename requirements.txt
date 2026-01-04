@@ -10,4 +10,6 @@ transformers[sentencepiece]
 sentence-transformers
 scikit-learn
 beautifulsoup4
+pinecone
+python-dotenv
 

@@ -2,11 +2,24 @@
 Main entry point for the application.
 """
 from typing import Any
+import re
+import unicodedata
 import src.feedparse as feedparse
 import time
 import src.filter as filter
 import src.clustering as clustering 
+import src.vstorage as vstorage
 
+import os
+from dotenv import load_dotenv
+from pinecone import Pinecone
+
+# Load environment variables from .env file
+load_dotenv()
+api_key = os.getenv("PINECONE_API_KEY")
+
+pc = Pinecone(api_key=api_key)
+index = pc.Index(host="https://politics-app-551uxi4.svc.aped-4627-b74a.pinecone.io")
 
 feed_urls = [
     "https://444.hu/feed",
@@ -17,44 +30,79 @@ feed_urls = [
     "https://hvg.hu/rss",
     "https://mandiner.hu/rss", 
     "https://atlatszo.hu/rss",
+    "https://www.portfolio.hu/rss/unios-forrasok.xml",
+    "https://www.portfolio.hu/rss/ingatlan.xml",
+    "https://www.portfolio.hu/rss/gazdasag.xml",
+
 
 ]
 
+def slugify(text: str) -> str:
+    """
+    Converts a news title into a Pinecone-safe namespace string.
+    """
+    # Normalize unicode characters to decompose combined characters (like 'ö' to 'o' + '¨')
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+    
+    # Remove everything that isn't a word character, space, or hyphen
+    text = re.sub(r'[^\w\s-]', '', text).strip().lower()
+    
+    # Replace spaces and multiple hyphens with a single hyphen
+    text = re.sub(r'[-\s]+', '-', text)
+    
+    # Limit to 60 characters (Pinecone namespaces have length limits)
+    return text[:60]
+
+
 def main():
     """Main function."""
+
+    # Optional: Debug list
+    # for ids in index.list(namespace='topic_memory'):
+    #     print(ids)
     
     raw_articles = feedparse.get_all_articles(feed_urls)
     
-    clustered_articles, known_topics, categories_dict = clustering.assign_topics(articles=raw_articles)
-    
-    filter_results = filter.politics_filter(list(categories_dict.keys()))
+    # 1. Fetch topics from Pinecone
+    topic_memory_dict = vstorage.query_topic_memory()
 
-    print(filter_results)
+    # 2. FIX: Create a set of keys strictly for what is ALREADY in the DB
+    # We use a set for faster lookups and to detach from the dictionary object
+    known_topics_snapshot = set(topic_memory_dict.keys())
 
-#     # Print categories_dict in a readable format
-#     print("\n" + "="*80)
-#     print("CATEGORIES SUMMARY")
-#     print("="*80)
+    # 3. Clustering (This function appears to update topic_memory_dict in place)
+    raw_categories_dict = clustering.assign_topics(articles=raw_articles, known_topics=topic_memory_dict)
     
-#     for topic_name, articles in categories_dict.items():
-#         print(f"\n{'─'*80}")
-#         print(f"📰 TOPIC: {topic_name}")
-#         print(f"   Articles: {len(articles)}")
-#         print(f"{'─'*80}")
+    filter_results = filter.politics_filter(list(raw_categories_dict.keys()))
+
+    categories_dict = {k: v for k, v in raw_categories_dict.items() if k in filter_results}
+
+    print(f"[Main] categories_dict keys: {categories_dict.keys()}")
+    
+    # This print proved the dict was modified:
+    # print(f"[Main] topic memory keys {topic_memory_dict.keys()}") 
+
+    for topic_name, articles in categories_dict.items():
+        slug_id = slugify(topic_name)
+
+        print(f"[Main] topic name {topic_name}")
         
-#         for idx, article in enumerate(articles, 1):
-#             print(f"\n  [{idx}] {article.get('title', 'N/A')}")
-#             print(f"      Source: {article.get('source', 'N/A')}")
-#             print(f"      Published: {article.get('published', 'N/A')}")
-#             if article.get('description'):
-#                 desc = article['description'][:100] + "..." if len(article.get('description', '')) > 100 else article.get('description', '')
-#                 print(f"      Description: {desc}")
-#             print(f"      Link: {article.get('link', 'N/A')}")
-    
-#     print(f"\n{'='*80}")
-#     print(f"Total Categories: {len(categories_dict)}")
-#     print(f"Total Articles: {sum(len(articles) for articles in categories_dict.values())}")
-#     print(f"{'='*80}\n")
+        # 4. FIX: Check against the SNAPSHOT, not the modified dictionary
+        is_known = topic_name in known_topics_snapshot
+        print(f"[Main] topic_name in KNOWN_SNAPSHOT: {is_known}")
+
+        if not is_known:
+            # It's not in the snapshot, so it's new. Save to Pinecone 'topic_memory'.
+            vstorage.upsert_to_namespace(topic_name, slug_id, articles, save_to_memory=True)
+        else: 
+            # It was already in Pinecone at the start of the script.
+            vstorage.upsert_to_namespace(topic_name, slug_id, articles, save_to_memory=False)
+
+
+def test():
+    topic_memory_dict = vstorage.query_topic_memory()
+    print(topic_memory_dict.keys())
+        
     
 if __name__ == "__main__":
     start_time = time.perf_counter()    
