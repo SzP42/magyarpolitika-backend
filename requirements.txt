@@ -12,4 +12,5 @@ scikit-learn
 beautifulsoup4
 pinecone
 python-dotenv
+firecrawl-py
 

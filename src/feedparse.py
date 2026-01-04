@@ -108,6 +108,8 @@ def get_all_articles(feed_urls: List[str], timeout: int = 10) -> List[Dict]:
         'description': 'article_description'
         }, ... 
         ]
+
+        in clustering, after embedding a vector will be added as well ('vector': [float, float])
     """
     print(f"[FeedParse] Starting to parse {len(feed_urls)} feeds...")
     all_articles = []

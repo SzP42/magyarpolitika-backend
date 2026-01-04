@@ -4,16 +4,25 @@ from pinecone import Pinecone
 from typing import Dict, List
 import numpy as np
 
-# Load environment variables from .env file
+
 load_dotenv()
 api_key = os.getenv("PINECONE_API_KEY")
 
 pc = Pinecone(api_key=api_key)
 index = pc.Index(host="https://politics-app-551uxi4.svc.aped-4627-b74a.pinecone.io")
 
-# A function to store the new articles in the vector db
+# retrieve a list of metadatas from a namespace
+def get_data_for_namespace(slug_id):
+    results = index.query(
+        namespace=slug_id,
+        vector=[0.0] * 384, 
+        top_k=1000, 
+        include_metadata=True,
+    )
+    
+    return [a['metadata'] for a in results['matches']]
 
-# A function to get the articles from the topic memory
+
 def query_topic_memory():
 
     # 1. We query the namespace. 
@@ -43,7 +52,7 @@ def query_topic_memory():
 
 def upsert_to_namespace(topic_name, slug_id, articles, save_to_memory=False):
     if save_to_memory:
-        print("save to memory on")
+
         topic_vectors = list(articles[0]['vector'])
         # Convert numpy array to list if needed
             
@@ -70,8 +79,9 @@ def upsert_to_namespace(topic_name, slug_id, articles, save_to_memory=False):
                 "title": article['title'],
                 "description": article['description'],
                 "published": article['published'],
-                "url": article['link'],
+                "link": article['link'],
                 "source": article['source'],
+                "source_url": article['source_url']
                 }
             })
 
