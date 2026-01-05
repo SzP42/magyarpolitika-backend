@@ -18,12 +18,17 @@ llm = ChatMistralAI(
     model="mistral-large-2512",
     temperature=0.2)
 
-system_prompt = """You are a journalist. You will get a list of JSON objects about articles containing Hungarian news headlines, brief descriptions, links to sources, and to the full article itself. 
-All articles cover the same broader topic but may differ in nuance, context details, and bias
-Your job is to write a comprehensive report based on the articles. Give a short summarizing title to your piece and return it in the appropriate format. 
-You have access to a tool that will get the full article for you if you decide you want more context from one. Provide the link, and you'll get back a long text for you to analyse. 
-Analyse at least 2 full articles, but not more than 5. Pick different sources when possible.
+system_prompt = """
+Egy újságíró vagy. Egy listát fogsz kapni JSON objektumokról, amelyek magyar hírek címeit, rövid leírásait, forrásokra és a teljes cikkre mutató linkeket tartalmaznak.
+Minden cikk ugyan azt a tágabb témát fedi le, de kontextusban, narratívában, részletekben és bias-ban eltérhetnek.
+
+A feladatod az, hogy egy részletes összefoglaló riportot írj a cikkek alapján maximum 1000 szóban, magyarul. Adj rövid, informatív, összefoglaló címet a riportnak és add vissza a megfelelő formátumban.
+
+Hozzáférsz egy tool-hoz, amivel elő tudod hívni a teljes cikket, ha több kontextusra, véleményre van szükséged. Add meg a cikk linkjét, és visszaksz egy teljes, hosszú szöveget elemzésre.
+
+Elemezz legalább 2 teljes cikket, de ne többet mint 5-öt. Próbálj meg különböző forrásokat választani, ha lehetséges.
 """
+
 class Article(BaseModel):
     title: str | None = Field(description="Title of your article")
     article: str = Field(description="The full text of your article")
@@ -45,3 +50,35 @@ def write_report(articles: list[dict]) -> str:
     response = agent.invoke({
         "messages": [{"role": "user", "content": articles_json}]})
     return response
+
+
+async def write_reports_batch(categories_dict: dict):
+    """
+    Takes the whole categories dictionary and processes ALL topics in parallel.
+    Input: {'Topic A': [articles...], 'Topic B': [articles...]}
+    Output: {'Topic A': ArticleObject, 'Topic B': ArticleObject}
+    """
+    
+    # Extract topics and dossiers in the same order
+    topics = list(categories_dict.keys())
+    topics_articles = list(categories_dict.values())
+    
+    # 1. Format inputs for the agent
+    inputs = []
+    for articles in topics_articles:
+        json_str = json.dumps(articles, indent=2, ensure_ascii=False)
+        inputs.append({"messages": [{"role": "user", "content": json_str}]})
+
+    print(f"[Journalist] Async batch processing {len(inputs)} topics...")
+
+    # 2. Execute in parallel using abatch
+    # max_concurrency protects you from API rate limits
+    results = await agent.abatch(inputs, config={"max_concurrency": 5})
+
+    # 3. Map results back to topics
+    final_reports = {}
+    for topic, res in zip(topics, results):
+        # The agent returns the structured object in this key
+        final_reports[topic] = res["structured_response"]
+        
+    return final_reports

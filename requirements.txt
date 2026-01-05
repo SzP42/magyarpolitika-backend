@@ -13,4 +13,4 @@ beautifulsoup4
 pinecone
 python-dotenv
 firecrawl-py
-
+supabase

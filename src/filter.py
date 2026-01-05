@@ -13,7 +13,7 @@ KEYWORDS = [
     "Fidesz", "KDNP", "Tisza Párt", "TISZA", "Demokratikus Koalíció", "DK", 
     "Mi Hazánk", "Momentum", "Kutyapárt", "MKKP", "Jobbik", "LMP", "MSZP",
     "választás", "kampány", "parlament", "kormány", "ellenzék", "szavazás", 
-    "mandátum", "vita", "választókerület", 
+    "mandátum", "vita", "választókerület", "Otthon start"
 ]
 
 def load_classifier(use_smart_model=True):

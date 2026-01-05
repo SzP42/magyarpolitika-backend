@@ -1,6 +1,7 @@
 """
 Main entry point for the application.
 """
+from sys import exception
 from typing import Any
 import re
 import unicodedata
@@ -10,7 +11,17 @@ import src.filter as filter
 import src.clustering as clustering 
 import src.vstorage as vstorage
 import src.journalist as journalist
+from dotenv import load_dotenv
+import os
+from supabase import create_client, Client
+import asyncio
+import json
+import pprint
 
+load_dotenv()
+SUPABASE_URL: str = os.getenv("SUPABASE_URL")
+SUPABASE_SECRET_KEY: str = os.getenv("SUPABASE_SECRET_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
 
 feed_urls = [
     "https://444.hu/feed",
@@ -45,7 +56,7 @@ def slugify(text: str) -> str:
     return text[:60]
 
 
-def main():
+async def main():
     """Main function."""
     
     raw_articles = feedparse.get_all_articles(feed_urls)
@@ -59,7 +70,7 @@ def main():
     
     filter_results = filter.politics_filter(list(raw_categories_dict.keys()))
 
-    categories_dict = {k: v for k, v in raw_categories_dict.items() if k in filter_results}    
+    categories_dict = {k: v for k, v in raw_categories_dict.items() if k in filter_results}
     
     # upload topics to Pinecone, get historical data for journalist agent, 
     for topic_name, articles in categories_dict.items():
@@ -88,22 +99,38 @@ def main():
         clean_articles = [{k: v for k, v in article.items() if k != 'vector'} for article in categories_dict[topic_name]]
         categories_dict[topic_name] = clean_articles
 
+    # Dump the dict in as is
+    reports_map = await journalist.write_reports_batch(categories_dict)
 
-    # Now write the report
-    print(f"[Main] Generating reports for {len(categories_dict)} topics.")
+    final_values = [{'title': report.title, 'article': report.article, 'sources': [{'title': a['title'], 'link': a['link']} for a in categories_dict[topic]]} for topic, report in reports_map.items()]
+
     try:
-        report = journalist.write_report(categories_dict[list(categories_dict.keys())[0]])
-        print(f"[Main] Report for topic '{topic_name}':\n{report}\n\n")
-    except Exception as e:
-        print(f"[Main] Error generating report for topic '{topic_name}': {str(e)}")
+        response = (
+        supabase.table("articles")
+        .insert(final_values)
+        .execute()
+    )
+        print(f"[Main] Supabase insert response: {response}")
+    except Exception as exception:
+        print(f"[Main] Supabase insert exception: {exception}")
 
+    # Handle results
+    for topic, report in reports_map.items():
+        print(f"\n{'='*30}")
+        print(f"TOPIC: {topic}")
+        print(f"TITLE: {report.title}")
+        print(f"REPORT:\n{report.article[:500]}")
+
+    
+
+    
 def test():
     pass
-    
-    
+
+
 if __name__ == "__main__":
     start_time = time.perf_counter()    
-    main()
+    asyncio.run(main())
     end_time = time.perf_counter()
     execution_time = end_time - start_time
     print(f"\n{'='*50}")
