@@ -121,13 +121,6 @@ async def main():
         print(f"TITLE: {report.title}")
         print(f"REPORT:\n{report.article[:500]}")
 
-    
-
-    
-def test():
-    pass
-
-
 if __name__ == "__main__":
     start_time = time.perf_counter()    
     asyncio.run(main())
