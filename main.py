@@ -107,15 +107,34 @@ async def main():
 
     final_values = [{'title': report.title, 'article': report.article, 'namespace': namespaces[topic], 'sources': [{'title': a['title'], 'link': a['link']} for a in categories_dict[topic]]} for topic, report in reports_map.items()]
 
+    response = supabase.table("articles").select("namespace").execute()
+    
+    existing_namespaces = {row['namespace'] for row in response.data}
+
+    new_articles = [val for val in final_values if val['namespace'] not in existing_namespaces]
+    existing_articles = [val for val in final_values if val['namespace'] in existing_namespaces]
+
     try:
         response = (
         supabase.table("articles")
-        .insert(final_values)
+        .insert(new_articles)
         .execute()
     )
-        print(f"[Main] Supabase insert response: {response}")
+        print(f"[Main] Supabase insert new_articles response: {response}")
     except Exception as exception:
         print(f"[Main] Supabase insert exception: {exception}")
+
+    for val in existing_articles:
+        try:
+            response = (
+            supabase.table("articles")
+            .update(val)
+            .eq("namespace", val['namespace'])
+            .execute()
+            )
+            print(f"[Main] Supabase update existing_articles response: {response}")
+        except Exception as exception:
+            print(f"[Main] Supabase update exception: {exception}")
 
     # Handle results
     for topic, report in reports_map.items():
