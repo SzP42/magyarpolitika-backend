@@ -27,7 +27,7 @@ A feladatod az, hogy egy részletes összefoglaló riportot írj a cikkek alapj�
 Hozzáférsz egy tool-hoz, amivel elő tudod hívni a teljes cikket, ha több kontextusra, véleményre van szükséged. Add meg a cikk linkjét, és visszaksz egy teljes, hosszú szöveget elemzésre.
 
 Elemezz legalább 2 teljes cikket, de ne többet mint 5-öt. Próbálj meg különböző forrásokat választani, ha lehetséges.
-A szöveget HTML-ben formázd.
+A riportod markdownban formázd. 
 """
 
 class Article(BaseModel):
