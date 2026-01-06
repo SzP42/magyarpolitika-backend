@@ -71,10 +71,13 @@ async def main():
     filter_results = filter.politics_filter(list(raw_categories_dict.keys()))
 
     categories_dict = {k: v for k, v in raw_categories_dict.items() if k in filter_results}
+
+    namespaces = {}
     
     # upload topics to Pinecone, get historical data for journalist agent, 
     for topic_name, articles in categories_dict.items():
         slug_id = slugify(topic_name)
+        namespaces[topic_name] = slug_id
         is_known = topic_name in topics_before_clustering
 
         print(f"[Main] topic name {topic_name}")
@@ -102,7 +105,7 @@ async def main():
     # Dump the dict in as is
     reports_map = await journalist.write_reports_batch(categories_dict)
 
-    final_values = [{'title': report.title, 'article': report.article, 'sources': [{'title': a['title'], 'link': a['link']} for a in categories_dict[topic]]} for topic, report in reports_map.items()]
+    final_values = [{'title': report.title, 'article': report.article, 'namespace': namespaces[topic], 'sources': [{'title': a['title'], 'link': a['link']} for a in categories_dict[topic]]} for topic, report in reports_map.items()]
 
     try:
         response = (

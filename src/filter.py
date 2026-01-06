@@ -13,7 +13,9 @@ KEYWORDS = [
     "Fidesz", "KDNP", "Tisza Párt", "TISZA", "Demokratikus Koalíció", "DK", 
     "Mi Hazánk", "Momentum", "Kutyapárt", "MKKP", "Jobbik", "LMP", "MSZP",
     "választás", "kampány", "parlament", "kormány", "ellenzék", "szavazás", 
-    "mandátum", "vita", "választókerület", "Otthon start"
+    "mandátum", "vita", "választókerület", "Otthon start", "adó", "gazdaság", 
+    "Bohár", "Puzsér", "Csernus", "Vona", "Schmidt", "Kovács Zoltán", "Áder János", 
+    "Közgyűlés", "propaganda", "háború", 
 ]
 
 def load_classifier(use_smart_model=True):
@@ -50,6 +52,7 @@ def politics_filter(category_titles: List[str], use_smart_model: bool = True) ->
 
     for title in category_titles:
         if any(k.lower() in title.lower() for k in KEYWORDS):
+            print(f"[Filter] Keyword match found for title: {title}")
             results.append(title)
             continue
         elif classifier(title, LABELS)["labels"][0] == "Politika":
