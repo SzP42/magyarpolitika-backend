@@ -15,8 +15,7 @@ from dotenv import load_dotenv
 import os
 from supabase import create_client, Client
 import asyncio
-import json
-import pprint
+
 
 load_dotenv()
 SUPABASE_URL: str = os.getenv("SUPABASE_URL")
@@ -102,6 +101,7 @@ async def main():
         clean_articles = [{k: v for k, v in article.items() if k != 'vector'} for article in categories_dict[topic_name]]
         categories_dict[topic_name] = clean_articles
 
+    print(categories_dict[list(categories_dict.keys())[0]])
     # Dump the dict in as is
     reports_map = await journalist.write_reports_batch(categories_dict)
 

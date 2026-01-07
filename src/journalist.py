@@ -1,5 +1,6 @@
 from langchain.agents import create_agent
 from langchain_mistralai import ChatMistralAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 from dotenv import load_dotenv
 from langchain.messages import SystemMessage
@@ -11,22 +12,34 @@ import json
 load_dotenv()
 
 mistral_api = os.getenv('MISTRAL_API_KEY')
+google_api = os.getenv('GOOGLE_API_KEY')
 
 
-llm = ChatMistralAI(
+googlellm = ChatGoogleGenerativeAI(
+    api_key=google_api,
+    model="gemini-3-flash-preview",
+    temperature=1.0,  
+    timeout=None,
+    max_retries=2,
+)
+
+mistralllm = ChatMistralAI(
     api_key=mistral_api,
     model="mistral-large-2512",
-    temperature=0.2)
+    temperature=1.0, 
+    timeout=180,
+    max_retries=3,)
 
 system_prompt = """
 Egy újságíró vagy. Egy listát fogsz kapni JSON objektumokról, amelyek magyar hírek címeit, rövid leírásait, forrásokra és a teljes cikkre mutató linkeket tartalmaznak.
 Minden cikk ugyan azt a tágabb témát fedi le, de kontextusban, narratívában, részletekben és bias-ban eltérhetnek.
 
-A feladatod az, hogy egy részletes összefoglaló riportot írj a cikkek alapján maximum 1000 szóban, magyarul. Adj rövid, informatív, összefoglaló címet a riportnak és add vissza a megfelelő formátumban.
+A feladatod az, hogy egy részletes összefoglaló riportot írj a cikkek alapján maximum 500 szóban, magyarul. Csakis olyan információt használj fel ami a cikkekben szerepel. Állításaidat idézettel támaszd alá.
+Adj rövid, informatív, összefoglaló címet a riportnak és add vissza a megfelelő formátumban.
 
 Hozzáférsz egy tool-hoz, amivel elő tudod hívni a teljes cikket, ha több kontextusra, véleményre van szükséged. Add meg a cikk linkjét, és visszaksz egy teljes, hosszú szöveget elemzésre.
 
-Elemezz legalább 2 teljes cikket, de ne többet mint 5-öt. Próbálj meg különböző forrásokat választani, ha lehetséges.
+Elemezz legalább 2 teljes cikket, de ne többet mint 4-et. Próbálj meg különböző forrásokat választani, ha lehetséges.
 A riportod markdownban formázd. 
 """
 
@@ -36,10 +49,10 @@ class Article(BaseModel):
 
 
 agent = create_agent(
-    model=ChatMistralAI(model="mistral-large-2512", api_key=mistral_api, temperature=0.7, ),
+    model=googlellm,
     tools=[tools.read_article],
     system_prompt = system_prompt,
-    response_format=ToolStrategy(Article)
+    response_format=ToolStrategy(Article),
 )
 
 

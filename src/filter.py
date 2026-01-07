@@ -12,7 +12,7 @@ KEYWORDS = [
     "Ungár", "Márki-Zay", "Hadházy", "Forint" "Nagy Márton", "Mészáros Lőrinc", "Gazdaság", "Nyugdíj"
     "Fidesz", "KDNP", "Tisza Párt", "TISZA", "Demokratikus Koalíció", "DK", 
     "Mi Hazánk", "Momentum", "Kutyapárt", "MKKP", "Jobbik", "LMP", "MSZP",
-    "választás", "kampány", "parlament", "kormány", "ellenzék", "szavazás", 
+    "választás", "kampány", "parlament", "ellenzék", "szavazás", 
     "mandátum", "vita", "választókerület", "Otthon start", "adó", "gazdaság", 
     "Bohár", "Puzsér", "Csernus", "Vona", "Schmidt", "Kovács Zoltán", "Áder János", 
     "Közgyűlés", "propaganda", "háború", 
