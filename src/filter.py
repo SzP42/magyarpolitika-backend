@@ -7,15 +7,15 @@ dumb_model = "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli"
 
 KEYWORDS = [
     "Orbán", "Szijjártó", "Rogán", "Gulyás", "Lázár", "Navracsics", "Kocsis Máté", 
-    "Szentkirályi", "Deutsch", "Pintér Sándor", "Novák", "Vitályos", "Menczer"
+    "Szentkirályi", "Deutsch", "Pintér Sándor", "Novák", "Vitályos", "Menczer",  
     "Magyar Péter", "Gyurcsány", "Dobrev", "Karácsony", "Toroczkai", 
-    "Ungár", "Márki-Zay", "Hadházy", "Forint" "Nagy Márton", "Mészáros Lőrinc", "Gazdaság", "Nyugdíj"
+    "Ungár", "Márki-Zay", "Hadházy", "Forint", "Nagy Márton", "Mészáros Lőrinc", "Gazdaság", "Nyugdíj",
     "Fidesz", "KDNP", "Tisza Párt", "TISZA", "Demokratikus Koalíció", "DK", 
     "Mi Hazánk", "Momentum", "Kutyapárt", "MKKP", "Jobbik", "LMP", "MSZP",
     "választás", "kampány", "parlament", "ellenzék", "szavazás", 
     "mandátum", "vita", "választókerület", "Otthon start", "adó", "gazdaság", 
     "Bohár", "Puzsér", "Csernus", "Vona", "Schmidt", "Kovács Zoltán", "Áder János", 
-    "Közgyűlés", "propaganda", "háború", 
+    "Közgyűlés", "propaganda", "háború", "gazdaság"
 ]
 
 def load_classifier(use_smart_model=True):
@@ -53,6 +53,9 @@ def politics_filter(category_titles: List[str], use_smart_model: bool = True) ->
     for title in category_titles:
         if any(k.lower() in title.lower() for k in KEYWORDS):
             print(f"[Filter] Keyword match found for title: {title}")
+            if any(k.lower() in title.lower() for k in ["trump", "tajvan", "grönland", "minneapolis", "szoboszlai", "rangadó", "foci", "válogatott", "amerika", "ice"]): 
+                print(f"[Filter] Geopolitics excluding it now title: {title}")
+                continue
             results.append(title)
             continue
         elif classifier(title, LABELS)["labels"][0] == "Politika":

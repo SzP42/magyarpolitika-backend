@@ -120,7 +120,6 @@ async def main():
         .insert(new_articles)
         .execute()
     )
-        print(f"[Main] Supabase insert new_articles response: {response}")
     except Exception as exception:
         print(f"[Main] Supabase insert exception: {exception}")
 
@@ -132,7 +131,6 @@ async def main():
             .eq("namespace", val['namespace'])
             .execute()
             )
-            print(f"[Main] Supabase update existing_articles response: {response}")
         except Exception as exception:
             print(f"[Main] Supabase update exception: {exception}")
 
