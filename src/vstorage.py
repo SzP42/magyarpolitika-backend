@@ -50,12 +50,68 @@ def query_topic_memory():
     return topic_memory_dict # Dict[original_name(str): vector(np.array)]
 
 
+def sync_topic_memory_with_namespaces():
+    """
+    Checks all namespaces in Pinecone and compares them with topic_memory.
+    Deletes topics from topic_memory that don't have corresponding namespaces.
+
+    Returns:
+        Dict with 'deleted' count and 'deleted_topics' list
+    """
+    print("[Storage] Starting topic_memory sync...")
+
+    # Get all namespaces from Pinecone index stats
+    stats = index.describe_index_stats()
+    existing_namespaces = set(stats.get('namespaces', {}).keys())
+    print(f"[Storage] Found {len(existing_namespaces)} namespaces in Pinecone")
+
+    # Query topic_memory to get all topics
+    results = index.query(
+        namespace="topic_memory",
+        vector=[0.0] * 384,
+        top_k=1000,
+        include_metadata=True
+    )
+
+    topics_to_delete = []
+
+    # Check each topic in topic_memory
+    for match in results['matches']:
+        topic_id = match['id']  # This should be the slug_id
+        topic_name = match['metadata'].get('original_name', 'unknown')
+
+        # Check if this topic has a corresponding namespace
+        if topic_id not in existing_namespaces:
+            topics_to_delete.append({
+                'id': topic_id,
+                'name': topic_name
+            })
+            print(f"[Storage] Topic '{topic_name}' (slug: {topic_id}) has no namespace - marking for deletion")
+
+    # Delete the orphaned topics from topic_memory
+    deleted_count = 0
+    for topic in topics_to_delete:
+        try:
+            index.delete(ids=[topic['id']], namespace="topic_memory")
+            print(f"[Storage] Deleted topic '{topic['name']}' (slug: {topic['id']}) from topic_memory")
+            deleted_count += 1
+        except Exception as e:
+            print(f"[Storage] ERROR: Failed to delete topic '{topic['name']}' from topic_memory: {e}")
+
+    print(f"[Storage] Sync complete. Deleted {deleted_count} orphaned topics from topic_memory")
+
+    return {
+        'deleted': deleted_count,
+        'deleted_topics': topics_to_delete
+    }
+
+
 def upsert_to_namespace(topic_name, slug_id, articles, save_to_memory=False):
     if save_to_memory:
 
         topic_vectors = list(articles[0]['vector'])
         # Convert numpy array to list if needed
-            
+
         print(f"[Storage] Saving topic '{topic_name}' to topic_memory with slug '{slug_id}'")
         vector_to_upsert = [{
             "id": slug_id,
@@ -73,7 +129,7 @@ def upsert_to_namespace(topic_name, slug_id, articles, save_to_memory=False):
         # print(f"[Storage] Upserting {article['title']} to {slug_id} namespace")
 
         vectors_to_upsert.append({
-            "id": article['link'], 
+            "id": article['link'],
             "values": article['vector'],
             "metadata": {
                 "title": article['title'],
@@ -81,9 +137,10 @@ def upsert_to_namespace(topic_name, slug_id, articles, save_to_memory=False):
                 "published": article['published'],
                 "link": article['link'],
                 "source": article['source'],
-                "source_url": article['source_url']
-                }
-            })
+                "source_url": article['source_url'],
+                "tags": article['tags']
+            }
+        })
 
     # Upsert all articles at once, outside the loop
     if vectors_to_upsert:

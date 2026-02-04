@@ -34,8 +34,6 @@ feed_urls = [
     "https://www.portfolio.hu/rss/unios-forrasok.xml",
     "https://www.portfolio.hu/rss/ingatlan.xml",
     "https://www.portfolio.hu/rss/gazdasag.xml",
-
-
 ]
 
 def slugify(text: str) -> str:
@@ -57,34 +55,43 @@ def slugify(text: str) -> str:
 
 async def main():
     """Main function."""
-    
+
     raw_articles = feedparse.get_all_articles(feed_urls)
-    
+
     # 1. Fetch topics from Pinecone
     topic_memory_dict = vstorage.query_topic_memory()
 
     topics_before_clustering = set(topic_memory_dict.keys())
 
     raw_categories_dict = clustering.assign_topics(articles=raw_articles, known_topics=topic_memory_dict)
-    
+
+    # Filter topics (topic-level filter)
     filter_results = filter.politics_filter(list(raw_categories_dict.keys()))
 
     categories_dict = {k: v for k, v in raw_categories_dict.items() if k in filter_results}
 
+    # Tag individual articles within each topic
+    print(f"[Main] Tagging articles in {len(categories_dict)} topics...")
+    for topic_name, articles in categories_dict.items():
+        titles = [a['title'] for a in articles]
+        title_to_tags = filter.politics_filter(titles)
+        for article in articles:
+            article['tags'] = title_to_tags.get(article['title'], [])
+
     namespaces = {}
-    
-    # upload topics to Pinecone, get historical data for journalist agent, 
+
+    # upload topics to Pinecone, get historical data for journalist agent,
     for topic_name, articles in categories_dict.items():
         slug_id = slugify(topic_name)
         namespaces[topic_name] = slug_id
         is_known = topic_name in topics_before_clustering
 
         print(f"[Main] topic name {topic_name}")
-        
+
         if not is_known:
-            # Brand new topic, wasn't in the DB before clustering 
+            # Brand new topic, wasn't in the DB before clustering
             vstorage.upsert_to_namespace(topic_name, slug_id, articles, save_to_memory=True)
-        else: 
+        else:
             # It was already in Pinecone at the start of the script.
 
             hist_articles = vstorage.get_data_for_namespace(slug_id)
@@ -97,7 +104,7 @@ async def main():
 
             print(f"[Main] Merged {len(unique_history)} historical articles for context.")
 
-    
+
         clean_articles = [{k: v for k, v in article.items() if k != 'vector'} for article in categories_dict[topic_name]]
         categories_dict[topic_name] = clean_articles
 
@@ -105,7 +112,21 @@ async def main():
     # Dump the dict in as is
     reports_map = await journalist.write_reports_batch(categories_dict)
 
-    final_values = [{'title': report.title, 'article': report.article, 'namespace': namespaces[topic], 'sources': [{'title': a['title'], 'link': a['link']} for a in categories_dict[topic]]} for topic, report in reports_map.items()]
+    # Collect all tags from articles in topic
+    final_values = []
+    for topic, report in reports_map.items():
+        all_tags = []
+        for article in categories_dict[topic]:
+            all_tags.extend(article['tags'])
+        unique_tags = list(set(all_tags))
+
+        final_values.append({
+            'title': report.title,
+            'article': report.article,
+            'namespace': namespaces[topic],
+            'sources': [{'title': a['title'], 'link': a['link']} for a in categories_dict[topic]],
+            'tags': unique_tags
+        })
 
     response = supabase.table("articles").select("namespace").execute()
     
@@ -141,9 +162,25 @@ async def main():
         print(f"TITLE: {report.title}")
         print(f"REPORT:\n{report.article[:500]}")
 
+def test():
+    """Returns the tags of the last 5 articles from the database."""
+    response = supabase.table("articles").select("title, tags").order("created_at", desc=True).limit(5).execute()
+
+    result = []
+    for article in response.data:
+        result.append({
+            'title': article['title'],
+            'tags': article['tags']
+        })
+
+    print(result)
+    return result
+    
+
 if __name__ == "__main__":
     start_time = time.perf_counter()    
     asyncio.run(main())
+    # test()
     end_time = time.perf_counter()
     execution_time = end_time - start_time
     print(f"\n{'='*50}")

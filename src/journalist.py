@@ -1,5 +1,4 @@
 from langchain.agents import create_agent
-from langchain_mistralai import ChatMistralAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 from dotenv import load_dotenv
@@ -11,7 +10,6 @@ import json
 
 load_dotenv()
 
-mistral_api = os.getenv('MISTRAL_API_KEY')
 google_api = os.getenv('GOOGLE_API_KEY')
 
 
@@ -23,12 +21,6 @@ googlellm = ChatGoogleGenerativeAI(
     max_retries=2,
 )
 
-mistralllm = ChatMistralAI(
-    api_key=mistral_api,
-    model="mistral-large-2512",
-    temperature=1.0, 
-    timeout=180,
-    max_retries=3,)
 
 system_prompt = """
 Egy újságíró vagy. Egy listát fogsz kapni JSON objektumokról, amelyek magyar hírek címeit, rövid leírásait, forrásokra és a teljes cikkre mutató linkeket tartalmaznak.

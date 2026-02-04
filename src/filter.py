@@ -1,69 +1,42 @@
-# import torch
-from transformers import pipeline
 from typing import List, Dict
+import os
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
 
-smart_model = "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli"
-dumb_model = "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli"
+load_dotenv()
 
-KEYWORDS = [
-    "Orbán", "Szijjártó", "Rogán", "Gulyás", "Lázár", "Navracsics", "Kocsis Máté", 
-    "Szentkirályi", "Deutsch", "Pintér Sándor", "Novák", "Vitályos", "Menczer",  
-    "Magyar Péter", "Gyurcsány", "Dobrev", "Karácsony", "Toroczkai", 
-    "Ungár", "Márki-Zay", "Hadházy", "Forint", "Nagy Márton", "Mészáros Lőrinc", "Gazdaság", "Nyugdíj",
-    "Fidesz", "KDNP", "Tisza Párt", "TISZA", "Demokratikus Koalíció", "DK", 
-    "Mi Hazánk", "Momentum", "Kutyapárt", "MKKP", "Jobbik", "LMP", "MSZP",
-    "választás", "kampány", "parlament", "ellenzék", "szavazás", 
-    "mandátum", "vita", "választókerület", "Otthon start", "adó", "gazdaság", 
-    "Bohár", "Puzsér", "Csernus", "Vona", "Schmidt", "Kovács Zoltán", "Áder János", 
-    "Közgyűlés", "propaganda", "háború", "gazdaság"
-]
+openai_api = os.getenv('OPENAI_API_KEY')
 
-def load_classifier(use_smart_model=True):
+filter_llm = ChatOpenAI(
+    model="gpt-5-nano",
+    api_key=openai_api,
+)
 
-    device = -1
-    # if torch.cuda.is_available():
-        # device = 0
-    # elif torch.backends.mps.is_available():
-        # device = "mps"
+tags_list = ["Fidesz", "Tisza", "gazdasag", "oktatas", "egeszsegugy", "kampany", "gyermekvedelem", "kulpolitika", "kozlekedes", "egyeb"]
 
-    if use_smart_model:
-        MODEL = smart_model
-        print(f"[Filter] Loading smart model: {MODEL}")
-    else:
-        MODEL = dumb_model
-        print(f"[Filter] Loading fast model: {MODEL}")
+system_prompt = f"""
+Egy listát fogsz kapni magyar hírek címeiről. El kell döntened, hogy a cím magyar politikával foglalkozik-e vagy sem. Csak magyar politika és gazdaság érdekel, nemzetközi, Magyarországot nem érintő hír nem.
 
-    classifier = pipeline("zero-shot-classification", model=MODEL, device=device)
-    print(f"[Filter] Model loaded successfully")
-    return classifier
+Minden elfogadott címhez rendelj egy vagy több taget a következő listából: {tags_list}.
 
-def politics_filter(category_titles: List[str], use_smart_model: bool = True) -> List[Dict]:
+Válaszolj python dictionary formátumban, ahol a kulcsok a címek, az értékek pedig a tagek listája.
+Csak azokat a címeket add vissza, amelyek magyar politikával foglalkoznak.
+"""
 
-    results = []
+def politics_filter(titles: List[str]) -> Dict[str, List[str]]:
+    print(f"[Filter] Received {titles} as titles to filter")
 
-    print(f"[Filter] Starting politics filter on {len(category_titles)} titles")
-    classifier = load_classifier(use_smart_model)
-    LABELS = ["Egyéb", "Politika"]
+    """Returns dict mapping titles to their tags: {title: [tag1, tag2]}"""
+    print(f"[Filter] Starting politics filter on {len(titles)} titles")
 
-    print(f"[Filter] Classifying articles...")
+    messages = [("system", system_prompt)] + [("human", title) for title in titles]
+    print(f"[Filter] Messages: {messages}")
 
-    # in the future implement sorting out the non-political titles. To have data for fine-tuning
-    # results = [title for title in category_titles if classifier(title, LABELS)["labels"][0] == "Hungarian Politics"]
+    response = filter_llm.invoke(messages)
 
-    for title in category_titles:
-        if any(k.lower() in title.lower() for k in KEYWORDS):
-            print(f"[Filter] Keyword match found for title: {title}")
-            if any(k.lower() in title.lower() for k in ["trump", "tajvan", "grönland", "minneapolis", "szoboszlai", "rangadó", "foci", "válogatott", "amerika", "ice"]): 
-                print(f"[Filter] Geopolitics excluding it now title: {title}")
-                continue
-            results.append(title)
-            continue
-        elif classifier(title, LABELS)["labels"][0] == "Politika":
-            results.append(title)
+    print(f"[Filter] LLM Response: {response.content}")
 
-    print(f"[Filter] Filtered {len(category_titles) - len(results)} articles out of {len(category_titles)}")
-    print(f"[Filter] {len(results)} articles passed the politics filter")
+    results = eval(response.content)
 
-    return results 
-
-
+    print(f"[Filter] Filtered {len(titles) - len(results)} out, {len(results)} passed")
+    return results

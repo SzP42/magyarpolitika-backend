@@ -99,6 +99,8 @@ def assign_topics(articles: List[Dict], known_topics: Optional[Dict[str, np.ndar
             best_match_id = np.argmax(similarities)
             best_score = similarities[best_match_id]
 
+
+            print(f"[Clustering] Proposed topic name: '{proposed_name}'. Best match score: {best_score:.3f} with existing topic '{known_topic_names[best_match_id]}'")
             if best_score > 0.80:
                 existing_name = known_topic_names[best_match_id]
                 final_topic_name = existing_name 
